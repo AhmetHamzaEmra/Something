@@ -8,7 +8,7 @@
 
 ## Examples:
 
-* [KNearestNeighbor](Exaples/Knn example.ipynb)
+* [KNearestNeighbor](https://github.com/AhmetHamzaEmra/Something/blob/master/Examples/Knn%20example.ipynb)
 
 ## Todo:
 
