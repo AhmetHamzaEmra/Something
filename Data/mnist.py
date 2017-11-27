@@ -1,1 +1,0 @@
-from something model, predict
