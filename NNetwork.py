@@ -62,10 +62,13 @@ class network_two_layer(object):
         return y_pred
 
 
+
 class Fully_Connected(object):
     def __init__(self):
 
         self.loss_history = []
+        self.train_acc_history = []
+        self.val_acc_history =[]
 
     
     def init_layers(self, layers, sm=0.001):
@@ -128,7 +131,7 @@ class Fully_Connected(object):
                 
         return loss, grads
     
-    def train(self, x, y, learning_rate=1e-3, num_iters=100, verbose=False):
+    def train(self, x, y, x_val=np.array([]), y_val=np.array([]), learning_rate=1e-3, num_iters=100, verbose=False):
         
         for step in range(1,num_iters+1):
             loss, grads = self.train_step(x,y)
@@ -138,10 +141,16 @@ class Fully_Connected(object):
                 self.model[i] -= grads[i]*learning_rate
                 
             if verbose and step % 100 == 0:
-                print( 'iteration %d / %d: loss %f' % (step, num_iters, loss))
-        
+                train_acc = self.score(x,y)
+                self.train_acc_history.append(train_acc)
+                if x_val.shape[0] != 0:
+                    val_acc = self.score(x_val,y_val)
+                    self.val_acc_history.append(val_acc)
+                    print('iteration %d / %d: loss %f training accuracy %f val accuracy %f'% (step, num_iters, loss, train_acc,val_acc))
             
-                
+                else:
+                    print( 'iteration %d / %d: loss %f training accuracy %f'  % (step, num_iters, loss, train_acc))
+                    
     def predict(self, x):
         scores={}
         for i in range(len(self.model)//2):
@@ -156,5 +165,8 @@ class Fully_Connected(object):
         return y_pred
                 
 
-
+    def score(self,x,y):
+        pred = self.predict(x)
+        correct = pred == y
+        return np.sum(correct)/y.shape[0]
               
