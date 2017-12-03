@@ -9,6 +9,7 @@
 
 
 * Machine Learning and Deep learning algorithms written with python and numpy.
+* Perfect for every environment including Raspberry Pi
 
 ## Examples:
 
@@ -28,12 +29,12 @@ net.predict(x_test)
 ## Notebooks:
 
 * [KNearestNeighbor](https://github.com/AhmetHamzaEmra/Something/blob/master/Examples/Knn%20example.ipynb)
+* [Fully Connected](https://github.com/AhmetHamzaEmra/Something/blob/master/Examples/Fully%20Connected.ipynb)
 
 ## Todo:
 
 * Softmax Classifier
-* Linear SVM
-* Neular Networks 
+* Linear SVM 
 * Conv Nets
 
 

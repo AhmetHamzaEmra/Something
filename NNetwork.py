@@ -64,7 +64,9 @@ class network_two_layer(object):
 
 class Fully_Connected(object):
     def __init__(self):
-        pass
+
+        self.loss_history = []
+
     
     def init_layers(self, layers, sm=0.001):
         model={}
@@ -127,17 +129,17 @@ class Fully_Connected(object):
         return loss, grads
     
     def train(self, x, y, learning_rate=1e-3, num_iters=100, verbose=False):
-        loss_history = []
+        
         for step in range(1,num_iters+1):
             loss, grads = self.train_step(x,y)
-            loss_history.append(loss)
+            self.loss_history.append(loss)
             
             for i in self.model:
                 self.model[i] -= grads[i]*learning_rate
                 
             if verbose and step % 100 == 0:
                 print( 'iteration %d / %d: loss %f' % (step, num_iters, loss))
-        self.loss_history = loss_history
+        
             
                 
     def predict(self, x):
