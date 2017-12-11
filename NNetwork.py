@@ -169,4 +169,17 @@ class Fully_Connected(object):
         pred = self.predict(x)
         correct = pred == y
         return np.sum(correct)/y.shape[0]
+
+    def plot(self):
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(40, 40))
+        plt.subplot(5, 5, 1)
+        plt.plot(self.loss_history)
+        plt.title("Loss")
+        plt.subplot(5, 5, 2)
+        plt.plot(self.train_acc_history, 'b',label='traing accuracy')
+        plt.plot(self.val_acc_history, 'r', label='validation accuracy')
+        plt.legend()
+        plt.title("Accuracy")
+        plt.show()
               

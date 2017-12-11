@@ -30,6 +30,7 @@ net.predict(x_test)
 
 * [KNearestNeighbor](https://github.com/AhmetHamzaEmra/Something/blob/master/Examples/Knn%20example.ipynb)
 * [Fully Connected](https://github.com/AhmetHamzaEmra/Something/blob/master/Examples/Fully%20Connected.ipynb)
+* [Kaggle Gender Recognition by Voice](https://www.kaggle.com/ahmethamzaemra/something-net-experiment)
 
 ## Todo:
 
