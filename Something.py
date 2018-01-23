@@ -414,4 +414,330 @@ class ConvNet(object):
         plt.title("Accuracy")
         plt.show()
               
-              
+            
+class ConvNetwPool(object):
+    def __init__(self):
+
+        self.loss_history = []
+        self.train_acc_history = []
+        self.val_acc_history =[]
+
+
+    def zero_pad(self, X, pad):
+
+        X_pad = np.pad(X, ((0,0), (pad,pad), (pad,pad),(0,0)), mode = 'constant')
+
+        return X_pad
+    
+    def conv_single_step(self, a_slice_prev, W, b):
+        s = a_slice_prev*W
+        Z = np.sum(s)
+        Z = float(Z+b)
+        return Z
+
+    
+    def conv_forward(self, A_prev, W, b):
+
+        (m, n_H_prev, n_W_prev, n_C_prev) = A_prev.shape
+        (f, f, n_C_prev, n_C) = W.shape
+
+        stride = 1
+        pad = 1
+
+        n_H = int(np.floor((n_H_prev - f + (2*pad))/stride)+1)
+        n_W = int(np.floor((n_W_prev - f + (2*pad))/stride)+1)
+
+        Z = np.zeros([m, n_H, n_W, n_C])
+        A_prev_pad = self.zero_pad(A_prev, pad)
+
+        for i in range(m):                                  # loop over the batch of training examples
+            a_prev_pad = A_prev_pad[i]                      # Select ith training example's padded activation
+            for h in range(n_H):                            # loop over vertical axis of the output volume
+                for w in range(n_W):                        # loop over horizontal axis of the output volume
+                    for c in range(n_C):                    # loop over channels (= #filters) of the output volume
+                        vert_start = h * stride
+                        vert_end =vert_start+pad
+                        horiz_start = w* stride
+                        horiz_end = horiz_start+pad
+                        a_slice_prev = a_prev_pad[vert_start:vert_end,horiz_start:horiz_end,:]
+                        Z[i, h, w, c] = self.conv_single_step(a_slice_prev, W[...,c], b[...,c])
+
+        
+        return Z
+
+    
+    def conv_backward(self, dZ, A_prev, W, b):
+       
+        # Retrieve dimensions from A_prev's shape
+        (m, n_H_prev, n_W_prev, n_C_prev) = A_prev.shape
+
+        # Retrieve dimensions from W's shape
+        (f, f, n_C_prev, n_C) = W.shape
+
+        # Retrieve information from "hparameters"
+        stride = 1
+        pad = 1
+
+        # Retrieve dimensions from dZ's shape
+        (m, n_H, n_W, n_C) = dZ.shape
+
+        # Initialize dA_prev, dW, db with the correct shapes
+        dA_prev = np.zeros((m, n_H_prev, n_W_prev, n_C_prev))                           
+        dW = np.zeros((f, f, n_C_prev, n_C))
+        db = np.zeros((1, 1, 1, n_C))
+
+        # Pad A_prev and dA_prev
+        A_prev_pad = self.zero_pad(A_prev, pad)
+        dA_prev_pad = self.zero_pad(dA_prev, pad )
+        
+        
+        
+        for i in range(m):                       # loop over the training examples
+
+            # select ith training example from A_prev_pad and dA_prev_pad
+            a_prev_pad = A_prev_pad[i]
+            da_prev_pad = dA_prev_pad[i]
+
+            for h in range(n_H):                   # loop over vertical axis of the output volume
+                for w in range(n_W):               # loop over horizontal axis of the output volume
+                    for c in range(n_C):           # loop over the channels of the output volume
+
+                        # Find the corners of the current "slice"
+                        vert_start = w * stride
+                        vert_end = vert_start + f
+                        horiz_start = h * stride
+                        horiz_end = horiz_start+f
+
+                        # Use the corners to define the slice from a_prev_pad
+                        a_slice = a_prev_pad[vert_start:vert_end , horiz_start:horiz_end , :]
+
+                        # Update gradients for the window and the filter's parameters using the code formulas given above
+                        da_prev_pad[vert_start:vert_end, horiz_start:horiz_end, :] += W[:,:,:,c] * dZ[i, h, w, c]
+                        dW[:,:,:,c] +=  a_slice * dZ[i, h, w, c]
+                        db[:,:,:,c] += dZ[i, h, w, c]
+
+            # Set the ith training example's dA_prev to the unpaded da_prev_pad (Hint: use X[pad:-pad, pad:-pad, :])
+            dA_prev[i, :, :, :] = da_prev_pad[pad:-pad, pad:-pad, :]
+        
+        return dA_prev, dW, db
+
+    def pool_forward(self, A_prev, mode = "max"):
+        
+        (m, n_H_prev, n_W_prev, n_C_prev) = A_prev.shape
+
+        f = 2
+        stride = 1
+
+        n_H = int(1 + (n_H_prev - f) / stride)
+        n_W = int(1 + (n_W_prev - f) / stride)
+        n_C = n_C_prev
+        
+        A = np.zeros((m, n_H, n_W, n_C))              
+
+        for i in range(m):                           # loop over the training examples
+            for h in range(n_H):                     # loop on the vertical axis of the output volume
+                for w in range(n_W):                 # loop on the horizontal axis of the output volume
+                    for c in range (n_C):            # loop over the channels of the output volume
+
+                        # Find the corners of the current "slice" (≈4 lines)
+                        vert_start = h * stride
+                        vert_end = vert_start + f
+                        horiz_start = w * stride
+                        horiz_end = horiz_start + f
+
+                        # Use the corners to define the current slice on the ith training example of A_prev, channel c. (≈1 line)
+                        a_prev_slice = A_prev[i, vert_start:vert_end, horiz_start:horiz_end, c]
+
+                        # Compute the pooling operation on the slice. Use an if statment to differentiate the modes. Use np.max/np.mean.
+                        if mode == "max":
+                            A[i, h, w, c] = np.max(a_prev_slice)
+                        elif mode == "average":
+                            A[i, h, w, c] = np.mean(a_prev_slice)
+
+        
+
+        return A
+    def create_mask_from_window(self, x):
+        
+        mask = x == np.max(x)
+        return mask
+    
+    
+    
+    def distribute_value(self, dz, shape):
+        
+        (n_H, n_W) = shape
+
+        average =dz / (n_H * n_W)
+
+        a = np.ones((n_H,n_W)) * average
+        
+        return a
+    
+    def pool_backward(self, dA, A_prev,  mode = "max"):
+        
+
+        
+        stride = 1
+        f = 2
+
+        
+        m, n_H_prev, n_W_prev, n_C_prev = A_prev.shape
+        m, n_H, n_W, n_C = dA.shape
+
+        
+        dA_prev = np.zeros(A_prev.shape)
+
+        for i in range(m):                       # loop over the training examples
+            
+            a_prev = A_prev[i]
+            for h in range(n_H):                   # loop on the vertical axis
+                for w in range(n_W):               # loop on the horizontal axis
+                    for c in range(n_C):           # loop over the channels (depth)
+                        # Find the corners of the current "slice" (≈4 lines)
+                        vert_start = h * stride
+                        vert_end = vert_start + f
+                        horiz_start = w * stride
+                        horiz_end = horiz_start + f
+
+                        
+                        if mode == "max":
+                            a_prev_slice = a_prev[vert_start:vert_end, horiz_start:horiz_end, c]
+                            mask = self.create_mask_from_window(a_prev_slice)
+                            dA_prev[i, vert_start:vert_end, horiz_start:horiz_end, c] += np.multiply(mask, dA[i, h, w, c])
+
+                        elif mode == "average":
+                            da = dA[i, h, w, c]
+                            shape = (f, f)
+                            dA_prev[i, vert_start:vert_end, horiz_start:horiz_end, c] += self.distribute_value(da, shape)
+
+        return dA_prev
+    
+    
+    
+    def init_layers(self,input_size, output_size,  sm=0.1):
+        h, w, c = input_size
+        model = {}
+        model['W1'] = np.random.randn(3,3,c,4)*sm
+        model['b1'] = np.zeros((1,1,1,4))
+        model['W2'] = np.random.randn(3,3,4,4)*sm
+        model['b2'] = np.zeros((1,1,1,4))
+        model['W3'] = np.random.randn(3,3,4,4)*sm
+        model['b3'] = np.zeros((1,1,1,4))
+        model['W4'] = np.random.randn((h)*(w),256)*sm
+        model['b4'] = np.zeros((256))
+        model['W5'] = np.random.randn(256,output_size)*sm
+        model['b5'] = np.zeros((output_size))
+        self.model = model
+    
+    
+    
+    def train_step(self, x_train, y_train):
+        N,h,w,c = x_train.shape
+        scores={}
+        scores['Z1'] = self.conv_forward( x_train, self.model['W1'], self.model['b1'])
+        scores['A1'] = np.maximum(0,scores['Z1'])
+        scores['A1p'] = self.pool_forward(scores['A1'])
+        scores['Z2'] = self.conv_forward(scores['A1'], self.model['W2'], self.model['b2'])
+        scores['A2'] = np.maximum(0,scores['Z2'])
+        scores['A2p'] = self.pool_forward(scores['A2'])
+        scores['Z3'] = self.conv_forward(scores['A2'], self.model['W3'], self.model['b3'])
+        scores['A3'] = np.maximum(0,scores['Z3'])
+        scores['A3f'] = scores['A3'].reshape([-1,(h)*(w)])
+        scores['Z4'] = scores['A3f'].dot(self.model['W4']) + self.model['b4']
+        scores['A4'] = np.maximum(0,scores['Z4'])
+        scores['Z5'] = scores['A4'].dot(self.model['W5']) + self.model['b5']
+        
+        loss = 0
+        exp_scores = np.exp(scores['Z5'])
+        probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True) # [N x K]
+        corect_logprobs = -np.log(probs[range(N), y_train])
+        loss = np.sum(corect_logprobs) / N
+        
+        grads={}
+        dscores = probs.copy()
+        dscores[range(N), list(y_train)] -= 1
+        dscores /= N
+        # Grads layer5 
+        grads['W5'] = scores['A4'].T.dot(dscores) 
+        grads['b5'] = np.sum(dscores, axis = 0)
+        grads['dZ5'] = dscores.dot( self.model['W5'].T )
+        # Grads layer4
+        d4_relu = (scores['A4']>0) * grads['dZ5']
+        
+        grads['W4'] = scores['A3f'].T.dot(d4_relu) 
+        #grads['W4'] = grads['W4'].reshape([grads['W4'].shape[0]*grads['W4'].shape[1]*grads['W4'].shape[2],grads['W4'].shape[3]])
+        grads['b4'] = np.sum(d4_relu, axis = 0)
+        grads['dZ4'] = d4_relu.dot( self.model['W4'].T)
+        # Grads layer3
+        grads['dZ4'] = grads['dZ4'].reshape([-1,h,w,4])
+        d3_relu = (scores['A3']>0) * grads['dZ4']
+        grads['dZ3'], grads['W3'], grads['b3'] = self.conv_backward(d3_relu, scores['A2'], self.model['W3'], self.model['b3'])
+        grads['dZ3'] = self.pool_backward( grads['dZ3'],  scores['A2'])
+        # Grads layer2 
+        d2_relu = (scores['A2']>0) * grads['dZ3']
+        grads['dZ2'], grads['W2'], grads['b2'] = self.conv_backward(d2_relu, scores['A1'], self.model['W2'], self.model['b2'])
+        grads['dZ3'] = self.pool_backward( grads['dZ2'], scores['A1'])
+        # Grads layer1 
+        d1_relu = (scores['A1']>0) * grads['dZ2']
+        grads['dZ1'], grads['W1'], grads['b1'] = self.conv_backward(d1_relu, x_train, self.model['W1'], self.model['b1'])
+       
+        return loss, grads
+    
+    def train(self, x, y, x_val=np.array([]), y_val=np.array([]), learning_rate=1e-3, num_iters=100, verbose=True):
+        
+        for step in range(1,num_iters+1):
+            loss, grads = self.train_step(x,y)
+            self.loss_history.append(loss)
+            
+            for i in self.model:
+               
+                self.model[i] -= grads[i]*learning_rate
+                
+            if verbose:
+                #train_acc = self.score(x,y)
+                #self.train_acc_history.append(train_acc)
+                if x_val.shape[0] != 0:
+                    #val_acc = self.score(x_val,y_val)
+                    #self.val_acc_history.append(val_acc)
+                    print('\riteration %d / %d: loss %f'% (step, num_iters, loss), end = "")
+            
+                else:
+                    print( '\riteration %d / %d: loss %f'  % (step, num_iters, loss), end = "")
+                    
+    def predict(self, x):
+        
+        N,h,w,c = x.shape
+        scores={}
+        scores['Z1'] = self.conv_forward( x, self.model['W1'], self.model['b1'])
+        scores['A1'] = np.maximum(0,scores['Z1'])
+        scores['Z2'] = self.conv_forward(scores['A1'], self.model['W2'], self.model['b2'])
+        scores['A2'] = np.maximum(0,scores['Z2'])
+        scores['Z3'] = self.conv_forward(scores['A2'], self.model['W3'], self.model['b3'])
+        scores['A3'] = np.maximum(0,scores['Z3'])
+        scores['A3f'] = scores['A3'].reshape([-1,(h)*(w)*4])
+        scores['Z4'] = scores['A3f'].dot(self.model['W4']) + self.model['b4']
+        scores['A4'] = np.maximum(0,scores['Z4'])
+        scores['Z5'] = scores['A4'].dot(self.model['W5']) + self.model['b5']
+        y_pred = np.argmax(scores['Z5'], axis=1)
+        return y_pred
+                
+
+    def score(self,x,y):
+        pred = self.predict(x)
+        correct = pred == y
+        return np.sum(correct)/y.shape[0]
+
+    def plot(self):
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(40, 40))
+        plt.subplot(5, 5, 1)
+        plt.plot(self.loss_history)
+        plt.title("Loss")
+        plt.subplot(5, 5, 2)
+        plt.plot(self.train_acc_history, 'b',label='traing accuracy')
+        plt.plot(self.val_acc_history, 'r', label='validation accuracy')
+        plt.legend()
+        plt.title("Accuracy")
+        plt.show()
+                          
