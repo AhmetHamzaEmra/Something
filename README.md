@@ -34,7 +34,7 @@ net.predict(x_test)
 
 ## Todo:
 
-* ConvNet **Done**
+* ConvNet                  **Done**
 * Pooling Layer 
 
 
