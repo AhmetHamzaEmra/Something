@@ -34,9 +34,8 @@ net.predict(x_test)
 
 ## Todo:
 
-* Softmax Classifier
-* Linear SVM 
-* Conv Nets
+* ConvNet **Done**
+* Pooling Layer 
 
 
 ## Stay tuned! Nothing is also coming :D 
