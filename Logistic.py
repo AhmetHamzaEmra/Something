@@ -25,7 +25,7 @@ class LogisticRegression(object):
 			Z = np.dot(self.W, x.T)
 			Z += self.b
 			A = 1/ (1+np.exp(-Z)) 
-
+			cost = - (1/m)* np.sum(y*np.log(A) + (1-y)*np.log(1-A))
 			dz = A-y
 			dw =  np.dot(x.T, dz.T) / num_train
 			db =  np.sum(dz)/num_train
