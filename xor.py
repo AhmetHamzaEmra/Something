@@ -1,5 +1,4 @@
 import numpy as np
-
 from something.train import train
 from something.nn import NeuralNet
 from something.layers import Linear, Tanh
